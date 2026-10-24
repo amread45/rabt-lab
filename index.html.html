@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>رابط: من السحب للنتيجة</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#f3f6fa;--card:#fff;--tx:#172b3a;--mut:#647789;--pri:#176b9a;--ok:#188454;--bad:#b9382b;--bd:#d7e1e9;--warn:#a76508}
+@media(prefers-color-scheme:dark){:root{--bg:#121a22;--card:#1b2631;--tx:#e8eef3;--mut:#9aabba;--pri:#4aa3d6;--ok:#36b77c;--bad:#ed7165;--bd:#2c3b49;--warn:#e8a644}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:Arial,Tahoma,sans-serif;line-height:1.6}
+.wrap{max-width:850px;margin:auto;padding:14px}h1{font-size:22px;margin:5px 0}.sub{color:var(--mut);font-size:13px;margin:0 0 12px}
+.notice{background:var(--card);border:1px solid var(--bd);border-right:4px solid var(--warn);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px}
+.tabs{display:flex;gap:6px;overflow:auto;margin-bottom:12px}.tabs button{flex:1;white-space:nowrap;padding:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;font:inherit;cursor:pointer}.tabs button.active{background:var(--pri);color:white}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}.row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+label{display:block;color:var(--mut);font-size:13px;margin:8px 0 3px}input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.btn{padding:9px 13px;border:0;border-radius:8px;background:var(--pri);color:white;font:inherit;cursor:pointer;margin-top:9px}.btn.ok{background:var(--ok)}.btn.bad{background:var(--bad)}.btn.ghost{background:transparent;color:var(--mut);border:1px solid var(--bd)}.btn:disabled{opacity:.5;cursor:not-allowed}
+.id{font-weight:bold;direction:ltr;unicode-bidi:embed}.mut{color:var(--mut);font-size:13px}.tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;background:var(--bd)}.tag.ok{background:var(--ok);color:#fff}.tag.bad{background:var(--bad);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.actions{display:flex;gap:6px;flex-wrap:wrap}.timeline{border-right:3px solid var(--pri);margin:12px 8px 0 0;padding-right:12px}.timeline div{margin-bottom:9px;font-size:14px}.timeline small{color:var(--mut)}
+#qr{display:inline-block;background:#fff;padding:10px;border-radius:8px;margin:8px 0}.empty{text-align:center;padding:18px;color:var(--mut)}
+@media print{body *{visibility:hidden}#printArea,#printArea *{visibility:visible}#printArea{position:absolute;top:0;right:0;width:100%;border:0}#printArea .btn{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>رابط: من السحب للنتيجة</h1>
+<p class="sub">نسخة تجريبية متصلة بـ Firebase — استخدم كود المريض وليس الرقم القومي.</p>
+<div class="notice">البيانات تُحفظ في Firestore وتظهر للمستخدمين المسجلين. لا تستخدم بيانات مرضى حقيقية قبل تأمين صلاحيات المستخدمين.</div>
+<div class="card" id="authBox"><b>تسجيل الدخول لمزامنة البيانات</b><div class="grid"><div><label>البريد الإلكتروني</label><input id="email" type="email" autocomplete="username"></div><div><label>كلمة المرور</label><input id="password" type="password" autocomplete="current-password"></div></div><button class="btn" id="login">تسجيل الدخول</button><button class="btn ghost" id="logout" style="display:none">تسجيل الخروج</button><div class="mut" id="authMsg">سجّل الدخول لعرض عينات Firestore.</div></div>
+<div class="tabs" id="tabs"></div>
+<div id="view"><div class="card empty">جاري التحميل...</div></div>
+<div class="row"><button class="btn ghost" id="refresh">تحديث العرض</button><button class="btn ghost" id="export">تصدير نسخة احتياطية</button><button class="btn ghost" id="import">استيراد نسخة</button><button class="btn bad" id="clear">مسح بيانات الجهاز</button></div>
+<input id="importFile" type="file" accept="application/json" hidden>
+</div>
+<script>
+"use strict";
+const STATUS=["سُحبت","استلمها المندوب","في الطريق","وصلت المعمل","النتيجة جاهزة","مرفوضة"];
+const UNITS=["وحدة ميت غزال","وحدة البندرة","وحدة الجميزة","وحدة المنشأة الكبرى","مستشفى السنطة العام"];
+const KEY="rabt_samples_local_v1";
+let samples=[],tab="unit",filter="",labelId="";
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function now(){return new Date().toISOString();}
+function date(t){let d=new Date(t);return isNaN(d)?"—":d.toLocaleString("ar-EG",{dateStyle:"short",timeStyle:"short"});}
+const firebaseConfig = {apiKey:"AIzaSyBDQR_DKtJtRRHVD09EifPcMKHJ632Kuw",authDomain:"rabt-lab.firebaseapp.com",projectId:"rabt-lab",storageBucket:"rabt-lab.firebasestorage.app",messagingSenderId:"648315847013",appId:"1:648315847013:web:146866596670cd65c2a18c",measurementId:"G-H2X0QMGFX8"};
+firebase.initializeApp(firebaseConfig); const auth=firebase.auth(), db=firebase.firestore(); let currentUser=null;
+function save(){if(!currentUser){alert("سجّل الدخول أولًا لحفظ البيانات.");return;} Promise.all(samples.map(x=>db.collection("samples").doc(x.id).set(x))).then(()=>{$("authMsg").textContent="تم حفظ البيانات على قاعدة البيانات.";}).catch(e=>alert("تعذر الحفظ: "+e.message));}
+async function load(){if(!currentUser){samples=[];render();return;}try{let snap=await db.collection("samples").get();samples=snap.docs.map(d=>d.data());render();}catch(e){samples=[];render();alert("تعذر تحميل البيانات: "+e.message);}}
+function id(){let d=new Date(),stamp=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");let n=1;while(samples.some(x=>x.id==="SN-"+stamp+"-"+String(n).padStart(5,"0")))n++;return "SN-"+stamp+"-"+String(n).padStart(5,"0");}
+function find(x){return samples.find(s=>s.id===String(x).trim().toUpperCase());}
+function tag(x){return `<span class="tag ${x.status===4?"ok":x.status===5?"bad":""}">${STATUS[x.status]||"غير معروف"}</span>`;}
+function item(x,extra=""){return `<div class="card"><div class="row"><span class="id">${esc(x.id)}</span>${tag(x)}</div><div class="mut">${esc(x.unit)} · ${esc(x.type)} · ${esc(x.test)} · كود المريض: ${esc(x.patient)}</div>${extra}</div>`;}
+function timeline(x){return `<div class="timeline">${(x.log||[]).map(l=>`<div><b>${esc(STATUS[l.status]||"")}</b> · ${esc(l.who)}${l.note?` · ${esc(l.note)}`:""}<br><small>${date(l.time)}</small></div>`).join("")}</div>`;}
+function tabs(){let arr=[["unit","الوحدة"],["courier","المندوب"],["lab","المعمل"],["track","تتبع عينة"]];$("tabs").innerHTML=arr.map(a=>`<button data-tab="${a[0]}" class="${tab===a[0]?"active":""}">${a[1]}</button>`).join("");$("tabs").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;filter="";render();});}
+function selected(list){return filter?list.filter(x=>x.id===filter):list;}
+function scan(cb){let inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.setAttribute("capture","environment");inp.onchange=()=>{let f=inp.files&&inp.files[0];if(!f)return;let url=URL.createObjectURL(f),img=new Image();img.onload=()=>{try{let scale=Math.min(1,1400/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);let ctx=c.getContext("2d",{willReadFrequently:true});ctx.drawImage(img,0,0,c.width,c.height);let data=ctx.getImageData(0,0,c.width,c.height);let r=window.jsQR?jsQR(data.data,data.width,data.height):null;if(r&&r.data)cb(r.data.trim().toUpperCase());else alert("تعذر قراءة QR. جرّب صورة أوضح وإضاءة جيدة.");}catch(e){alert("تعذر معالجة الصورة.");}finally{URL.revokeObjectURL(url);}};img.onerror=()=>{URL.revokeObjectURL(url);alert("تعذر فتح الصورة.");};img.src=url;};inp.click();}
+function scanBox(){return `<div class="card"><button class="btn" id="scan">📷 مسح QR من صورة</button>${filter?` <button class="btn ghost" id="all">عرض الكل</button><div class="mut">العينة: <span class="id">${esc(filter)}</span></div>`:""}</div>`;}
+function bindScan(){if($("scan"))$("scan").onclick=()=>scan(x=>{filter=x;render();});if($("all"))$("all").onclick=()=>{filter="";render();};}
+function advance(x,status,who,note="",accepted){x.status=status;x.updated=now();x.log.push({status,who,note,time:x.updated});if(typeof accepted==="boolean")x.accepted=accepted;save();render();}
+function render(){tabs();let v=$("view"),h="";
+if(tab==="unit"){
+ if(labelId){let x=find(labelId);if(x)h+=`<div class="card" id="printArea" style="text-align:center"><b>ملصق العينة</b><br><div id="qr"></div><div class="id" style="font-size:20px">${esc(x.id)}</div><div class="mut">${esc(x.unit)} · ${esc(x.test)}</div><button class="btn" id="print">طباعة الملصق</button> <button class="btn ghost" id="closeLabel">إغلاق</button></div>`;}
+ h+=`<div class="card"><b>تسجيل سحب عينة</b><div class="grid"><div><label>الوحدة</label><select id="unit">${UNITS.map(u=>`<option>${esc(u)}</option>`).join("")}</select></div><div><label>نوع العينة</label><select id="type"><option>دم</option><option>بول</option><option>مسحة</option><option>براز</option><option>أخرى</option></select></div><div><label>كود المريض</label><input id="patient" maxlength="40"></div><div><label>التحليل المطلوب</label><input id="test" maxlength="120"></div><div><label>اسم الساحب</label><input id="collector" maxlength="80"></div></div><button class="btn" id="create">تسجيل وإصدار رقم العينة</button></div>`;
+ h+=samples.slice().reverse().slice(0,5).map(x=>item(x)).join("")||`<div class="card empty">لا توجد عينات مسجلة.</div>`;
+ v.innerHTML=h;
+ if(labelId&&find(labelId)){try{if(window.QRCode)new QRCode($("qr"),{text:labelId,width:160,height:160});else $("qr").textContent="مكتبة QR غير متاحة";}catch(e){$("qr").textContent="تعذر إنشاء QR";} $("print").onclick=()=>window.print();$("closeLabel").onclick=()=>{labelId="";render();};}
+ $("create").onclick=()=>{let patient=$("patient").value.trim(),test=$("test").value.trim(),collector=$("collector").value.trim();if(!patient||!test||!collector){alert("أكمل كود المريض والتحليل واسم الساحب.");return;}let sample={id:id(),unit:$("unit").value,type:$("type").value,patient,test,status:0,accepted:null,created:now(),updated:now(),log:[{status:0,who:collector,note:"سحب العينة",time:now()}]};samples.push(sample);save();labelId=sample.id;render();};
+}
+if(tab==="courier"){
+ h=scanBox()+`<div class="card"><label>اسم المندوب</label><input id="worker" maxlength="80"></div>`;
+ let list=selected(samples.filter(x=>x.status<3));h+=list.map(x=>{let action=x.status===0?["استلام من الوحدة",1]:["بدء الرحلة",2];return item(x,`<button class="btn" data-courier="${esc(x.id)}" data-next="${action[1]}">${action[0]}</button>`);}).join("")||`<div class="card empty">${filter?"العينة غير موجودة أو ليست في مرحلة المندوب":"لا توجد عينات بانتظار المندوب."}</div>`;
+ v.innerHTML=h;bindScan();v.querySelectorAll("[data-courier]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim();if(!who){alert("اكتب اسم المندوب.");return;}let x=find(b.dataset.courier);if(!x)return;advance(x,+b.dataset.next,who,b.dataset.next==="1"?"استلام من الوحدة":"بدء الرحلة");});
+}
+if(tab==="lab"){
+ h=scanBox()+`<div class="card"><label>اسم المستلم في المعمل</label><input id="worker" maxlength="80"></div>`;
+ let incoming=selected(samples.filter(x=>x.status===2)),results=selected(samples.filter(x=>x.status===3&&x.accepted===true));
+ h+=incoming.map(x=>item(x,`<label>درجة حرارة الصندوق عند الوصول (°م)</label><input type="number" step="0.1" id="temp-${esc(x.id)}"><div class="actions"><button class="btn ok" data-accept="${esc(x.id)}">استلام وقبول</button><button class="btn bad" data-reject="${esc(x.id)}">رفض</button></div>`)).join("");
+ h+=results.map(x=>item(x,`<label>النتيجة</label><input id="result-${esc(x.id)}" maxlength="500"><button class="btn" data-result="${esc(x.id)}">نشر النتيجة للوحدة</button>`)).join("");
+ if(!incoming.length&&!results.length)h+=`<div class="card empty">${filter?"العينة غير موجودة أو ليست في مرحلة المعمل":"لا توجد عينات في مرحلة المعمل."}</div>`;
+ v.innerHTML=h;bindScan();
+ v.querySelectorAll("[data-accept]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim(),t=$(`temp-${b.dataset.accept}`).value.trim();if(!who){alert("اكتب اسم المستلم.");return;}if(t===""){alert("أدخل درجة الحرارة.");return;}let x=find(b.dataset.accept);if(!x)return;if(Number(t)>8)advance(x,5,who,`رفض: درجة الحرارة ${t}°م أعلى من الحد التجريبي 8°م`,false);else advance(x,3,who,`درجة الحرارة ${t}°م — قبول تجريبي`,true);});
+ v.querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim();if(!who){alert("اكتب اسم المستلم.");return;}let reason=prompt("سبب رفض العينة:");if(reason===null)return;if(!reason.trim()){alert("اكتب سبب الرفض.");return;}let x=find(b.dataset.reject);if(x)advance(x,5,who,`رفض: ${reason.trim()}`,false);});
+ v.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim(),r=$(`result-${b.dataset.result}`).value.trim();if(!who||!r){alert("اكتب اسم المستلم والنتيجة.");return;}let x=find(b.dataset.result);if(x)advance(x,4,who,`النتيجة: ${r}`);});
+}
+if(tab==="track"){
+ h=`<div class="card"><button class="btn" id="scan">📷 مسح QR من صورة</button><label>أو اكتب رقم العينة</label><input id="query" placeholder="SN-YYYYMMDD-00001"><button class="btn ghost" id="search">بحث</button></div><div id="output"></div>`;
+ h+=samples.length?`<p class="mut">كل العينات:</p>`+samples.slice().reverse().map(x=>`<div class="card"><div class="row"><span class="id">${esc(x.id)}</span>${tag(x)}<button class="btn ghost" data-show="${esc(x.id)}">عرض</button></div></div>`).join(""):`<div class="card empty">لا توجد عينات بعد.</div>`;
+ v.innerHTML=h;
+ function show(raw){let x=find(raw),o=$("output");o.innerHTML=x?item(x,timeline(x)):`<div class="card empty">لم يتم العثور على العينة.</div>`;}
+ $("scan").onclick=()=>scan(x=>{$("query").value=x;show(x);});$("search").onclick=()=>show($("query").value);v.querySelectorAll("[data-show]").forEach(b=>b.onclick=()=>{show(b.dataset.show);window.scrollTo({top:0,behavior:"smooth"});});
+}
+}
+$("refresh").onclick=load;
+$("export").onclick=()=>{let blob=new Blob([JSON.stringify({app:"rabt-local",version:1,samples},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="rabt-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(a.href);};
+$("import").onclick=()=>$("importFile").click();
+$("importFile").onchange=async()=>{let f=$("importFile").files[0];if(!f)return;try{let data=JSON.parse(await f.text()),arr=Array.isArray(data)?data:data.samples;if(!Array.isArray(arr))throw Error("format");if(!confirm("سيتم استبدال البيانات الحالية بالنسخة المستوردة. متابعة؟"))return;samples=arr;save();render();}catch(e){alert("ملف النسخة الاحتياطية غير صالح.");}finally{$("importFile").value="";}};
+$("clear").onclick=async()=>{if(!confirm("تأكيد مسح جميع بيانات العينات من قاعدة البيانات؟ لا يمكن التراجع."))return;if(!currentUser){alert("سجّل الدخول أولًا.");return;}try{const snap=await db.collection("samples").get();for(const doc of snap.docs){await doc.ref.delete();}samples=[];labelId="";filter="";render();}catch(e){alert("تعذر المسح: "+e.message);}};
+$("login").onclick=()=>{let email=$("email").value.trim(),password=$("password").value;if(!email||!password){alert("اكتب البريد الإلكتروني وكلمة المرور.");return;}auth.signInWithEmailAndPassword(email,password).catch(e=>alert("تعذر تسجيل الدخول: "+e.message));};
+$("logout").onclick=()=>auth.signOut();
+auth.onAuthStateChanged(user=>{currentUser=user;$("login").style.display=user?"none":"inline-block";$("logout").style.display=user?"inline-block":"none";$("authMsg").textContent=user?"تم تسجيل الدخول: "+user.email:"سجّل الدخول لعرض عينات Firestore.";load();});
+</script>
+</body>
+</html>
