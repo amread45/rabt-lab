@@ -110,6 +110,51 @@ if(tab==="lab"){
  v.querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim();if(!who){alert("اكتب اسم المستلم.");return;}let reason=prompt("سبب رفض العينة:");if(reason===null)return;if(!reason.trim()){alert("اكتب سبب الرفض.");return;}let x=find(b.dataset.reject);if(x)advance(x,5,who,`رفض: ${reason.trim()}`,false);});
  v.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim(),r=$(`result-${b.dataset.result}`).value.trim();if(!who||!r){alert("اكتب اسم المستلم والنتيجة.");return;}let x=find(b.dataset.result);if(x)advance(x,4,who,`النتيجة: ${r}`);});
 }
+ 
+if(tab==="users"){
+  v.innerHTML=`<div class="card">
+    <h3>إدارة المستخدمين</h3>
+    <p>الحسابات المسجلة:</p>
+    <div id="usersList">جاري تحميل المستخدمين...</div>
+  </div>`;
+
+  db.collection("users").get().then(snap=>{
+    let html="";
+
+    snap.forEach(doc=>{
+      let u=doc.data();
+
+      html+=`<div class="card">
+        <p><b>البريد الإلكتروني:</b> ${esc(u.email||"غير معروف")}</p>
+        <p><b>الحالة:</b> ${u.approved?"مفعّل":"في انتظار الموافقة"}</p>
+        <p><b>الصلاحية:</b> ${esc(u.role||"غير محددة")}</p>
+        ${u.approved?"":`<button class="btn" data-approve="${doc.id}">موافقة وتفعيل</button>`}
+      </div>`;
+    });
+
+    $("usersList").innerHTML=html||"لا توجد حسابات مسجلة.";
+
+    $("usersList").querySelectorAll("[data-approve]").forEach(btn=>{
+      btn.onclick=async()=>{
+        try{
+          await db.collection("users").doc(btn.dataset.approve).update({
+            approved:true,
+            role:"unit"
+          });
+          alert("تم تفعيل الحساب بنجاح.");
+          render();
+        }catch(e){
+          alert("تعذر تفعيل الحساب: "+e.message);
+        }
+      };
+    });
+  }).catch(e=>{
+    $("usersList").textContent="تعذر تحميل المستخدمين: "+e.message;
+  });
+
+  return;
+}
+                 
 if(tab==="track"){
  h=`<div class="card"><button class="btn" id="scan">📷 مسح QR من صورة</button><label>أو اكتب رقم العينة</label><input id="query" placeholder="SN-YYYYMMDD-00001"><button class="btn ghost" id="search">بحث</button></div><div id="output"></div>`;
  h+=samples.length?`<p class="mut">كل العينات:</p>`+samples.slice().reverse().map(x=>`<div class="card"><div class="row"><span class="id">${esc(x.id)}</span>${tag(x)}<button class="btn ghost" data-show="${esc(x.id)}">عرض</button></div></div>`).join(""):`<div class="card empty">لا توجد عينات بعد.</div>`;
