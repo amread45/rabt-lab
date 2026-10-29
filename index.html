@@ -101,7 +101,8 @@ $("import").onclick=()=>$("importFile").click();
 $("importFile").onchange=async()=>{let f=$("importFile").files[0];if(!f)return;try{let data=JSON.parse(await f.text()),arr=Array.isArray(data)?data:data.samples;if(!Array.isArray(arr))throw Error("format");if(!confirm("سيتم استبدال البيانات الحالية بالنسخة المستوردة. متابعة؟"))return;samples=arr;save();render();}catch(e){alert("ملف النسخة الاحتياطية غير صالح.");}finally{$("importFile").value="";}};
 $("clear").onclick=async()=>{if(!confirm("تأكيد مسح جميع بيانات العينات من قاعدة البيانات؟ لا يمكن التراجع."))return;if(!currentUser){alert("سجّل الدخول أولًا.");return;}try{const snap=await db.collection("samples").get();for(const doc of snap.docs){await doc.ref.delete();}samples=[];labelId="";filter="";render();}catch(e){alert("تعذر المسح: "+e.message);}};
 $("login").onclick=()=>{let email=$("email").value.trim(),password=$("password").value;if(!email||!password){alert("اكتب البريد الإلكتروني وكلمة المرور.");return;}auth.signInWithEmailAndPassword(email,password).catch(e=>alert("تعذر تسجيل الدخول: "+e.message));};
- $("signup").onclick=async()=>{
+
+$("signup").onclick=async()=>{
   let email=$("email").value.trim();
   let password=$("password").value;
 
@@ -116,12 +117,23 @@ $("login").onclick=()=>{let email=$("email").value.trim(),password=$("password")
   }
 
   try{
-    await auth.createUserWithEmailAndPassword(email,password);
-    alert("تم إنشاء الحساب بنجاح.");
+    const credential=await auth.createUserWithEmailAndPassword(email,password);
+
+    await db.collection("users").doc(credential.user.uid).set({
+      email: credential.user.email,
+      role: "pending",
+      approved: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    await auth.signOut();
+
+    alert("تم إنشاء الحساب بنجاح. انتظر موافقة المدير لتفعيل حسابك.");
   }catch(e){
     alert("تعذر إنشاء الحساب: "+e.message);
   }
 };
+
 $("logout").onclick=()=>auth.signOut();
 auth.onAuthStateChanged(user=>{currentUser=user;$("login").style.display=user?"none":"inline-block";$("logout").style.display=user?"inline-block":"none";$("authMsg").textContent=user?"تم تسجيل الدخول: "+user.email:"سجّل الدخول لعرض عينات Firestore.";load();});
 </script>
