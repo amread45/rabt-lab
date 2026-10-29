@@ -30,7 +30,8 @@ label{display:block;color:var(--mut);font-size:13px;margin:8px 0 3px}input,selec
 <h1>رابط: من السحب للنتيجة</h1>
 <p class="sub">نسخة تجريبية متصلة بـ Firebase — استخدم كود المريض وليس الرقم القومي.</p>
 <div class="notice">البيانات تُحفظ في Firestore وتظهر للمستخدمين المسجلين. لا تستخدم بيانات مرضى حقيقية قبل تأمين صلاحيات المستخدمين.</div>
-<div class="card" id="authBox"><b>تسجيل الدخول لمزامنة البيانات</b><div class="grid"><div><label>البريد الإلكتروني</label><input id="email" type="email" autocomplete="username"></div><div><label>كلمة المرور</label><input id="password" type="password" autocomplete="current-password"></div></div><button class="btn" id="login">تسجيل الدخول</button><button class="btn ghost" id="logout" style="display:none">تسجيل الخروج</button><div class="mut" id="authMsg">سجّل الدخول لعرض عينات Firestore.</div></div>
+<div class="card" id="authBox"><b>تسجيل الدخول لمزامنة البيانات</b><div class="grid"><div><label>البريد الإلكتروني</label><input id="email" type="email" autocomplete="username"></div><div><label>كلمة المرور</label><input id="password" type="password" autocomplete="current-password"></div></div><button class="btn" id="login">تسجيل الدخول</button>
+<button class="btn ghost" id="signup">إنشاء حساب جديد</button><button class="btn ghost" id="logout" style="display:none">تسجيل الخروج</button><div class="mut" id="authMsg">سجّل الدخول لعرض عينات Firestore.</div></div>
 <div class="tabs" id="tabs"></div>
 <div id="view"><div class="card empty">جاري التحميل...</div></div>
 <div class="row"><button class="btn ghost" id="refresh">تحديث العرض</button><button class="btn ghost" id="export">تصدير نسخة احتياطية</button><button class="btn ghost" id="import">استيراد نسخة</button><button class="btn bad" id="clear">مسح بيانات الجهاز</button></div>
