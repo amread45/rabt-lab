@@ -56,7 +56,30 @@ function find(x){return samples.find(s=>s.id===String(x).trim().toUpperCase());}
 function tag(x){return `<span class="tag ${x.status===4?"ok":x.status===5?"bad":""}">${STATUS[x.status]||"غير معروف"}</span>`;}
 function item(x,extra=""){return `<div class="card"><div class="row"><span class="id">${esc(x.id)}</span>${tag(x)}</div><div class="mut">${esc(x.unit)} · ${esc(x.type)} · ${esc(x.test)} · كود المريض: ${esc(x.patient)}</div>${extra}</div>`;}
 function timeline(x){return `<div class="timeline">${(x.log||[]).map(l=>`<div><b>${esc(STATUS[l.status]||"")}</b> · ${esc(l.who)}${l.note?` · ${esc(l.note)}`:""}<br><small>${date(l.time)}</small></div>`).join("")}</div>`;}
-function tabs(){let arr=[["unit","الوحدة"],["courier","المندوب"],["lab","المعمل"],["track","تتبع عينة"]];$("tabs").innerHTML=arr.map(a=>`<button data-tab="${a[0]}" class="${tab===a[0]?"active":""}">${a[1]}</button>`).join("");$("tabs").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;filter="";render();});}
+
+function tabs(){
+  let arr=[
+    ["unit","الوحدة"],
+    ["courier","المندوب"],
+    ["lab","المعمل"],
+    ["track","تتبع عينة"]
+  ];
+
+  if(currentUser && currentUser.uid==="KlxPsB8AnvZ7UUNiA61hTODJyll2"){
+    arr.push(["users","إدارة المستخدمين"]);
+  }
+
+  $("tabs").innerHTML=arr.map(a=>
+    `<button data-tab="${a[0]}" class="${tab===a[0]?"active":""}">${a[1]}</button>`
+  ).join("");
+
+  $("tabs").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{
+    tab=b.dataset.tab;
+    filter="";
+    render();
+  });
+}
+
 function selected(list){return filter?list.filter(x=>x.id===filter):list;}
 function scan(cb){let inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.setAttribute("capture","environment");inp.onchange=()=>{let f=inp.files&&inp.files[0];if(!f)return;let url=URL.createObjectURL(f),img=new Image();img.onload=()=>{try{let scale=Math.min(1,1400/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);let ctx=c.getContext("2d",{willReadFrequently:true});ctx.drawImage(img,0,0,c.width,c.height);let data=ctx.getImageData(0,0,c.width,c.height);let r=window.jsQR?jsQR(data.data,data.width,data.height):null;if(r&&r.data)cb(r.data.trim().toUpperCase());else alert("تعذر قراءة QR. جرّب صورة أوضح وإضاءة جيدة.");}catch(e){alert("تعذر معالجة الصورة.");}finally{URL.revokeObjectURL(url);}};img.onerror=()=>{URL.revokeObjectURL(url);alert("تعذر فتح الصورة.");};img.src=url;};inp.click();}
 function scanBox(){return `<div class="card"><button class="btn" id="scan">📷 مسح QR من صورة</button>${filter?` <button class="btn ghost" id="all">عرض الكل</button><div class="mut">العينة: <span class="id">${esc(filter)}</span></div>`:""}</div>`;}
