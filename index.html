@@ -139,7 +139,7 @@ if(tab==="users"){
         try{
           await db.collection("users").doc(btn.dataset.approve).update({
             approved:true,
-            role:"unit"
+           role:prompt("اختر دور المستخدم: unit أو courier أو lab أو manager","unit")||"unit"
           });
           alert("تم تفعيل الحساب بنجاح.");
           render();
