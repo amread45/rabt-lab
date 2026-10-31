@@ -58,16 +58,24 @@ function item(x,extra=""){return `<div class="card"><div class="row"><span class
 function timeline(x){return `<div class="timeline">${(x.log||[]).map(l=>`<div><b>${esc(STATUS[l.status]||"")}</b> · ${esc(l.who)}${l.note?` · ${esc(l.note)}`:""}<br><small>${date(l.time)}</small></div>`).join("")}</div>`;}
 
 function tabs(){
-  let arr=[
-    ["unit","الوحدة"],
-    ["courier","المندوب"],
-    ["lab","المعمل"],
-    ["track","تتبع عينة"]
-  ];
+ let arr=[];
 
-  if(currentUser && currentUser.uid==="KlxPsB8AnvZ7UUNiA61hTODJyll2"){
-    arr.push(["users","إدارة المستخدمين"]);
+if(currentUser){
+  if(currentUser.uid==="KlxPsB8AnvZ7UUNiA61hTODJyll2"){
+    arr=[
+      ["unit","الوحدة"],
+      ["courier","المندوب"],
+      ["lab","المعمل"],
+      ["track","تتبع عينة"],
+      ["users","إدارة المستخدمين"]
+    ];
+  }else{
+    arr=[
+      ["unit","الوحدة"],
+      ["track","تتبع عينة"]
+    ];
   }
+}
 
   $("tabs").innerHTML=arr.map(a=>
     `<button data-tab="${a[0]}" class="${tab===a[0]?"active":""}">${a[1]}</button>`
