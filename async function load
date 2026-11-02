@@ -53,7 +53,7 @@ const auth=firebase.auth(), db=firebase.firestore();
 let currentUser=null;
 let currentRole="";
  function save(){if(!currentUser){alert("سجّل الدخول أولًا لحفظ البيانات.");return;} Promise.all(samples.map(x=>db.collection("samples").doc(x.id).set(x))).then(()=>{$("authMsg").textContent="تم حفظ البيانات على قاعدة البيانات.";}).catch(e=>alert("تعذر الحفظ: "+e.message));}
-async function load(){if(!currentUser){samples=[];render();return;}try{let snap=await db.collection("samples").get();samples=snap.docs.map(d=>d.data());render();}catch(e){samples=[];render();alert("تعذر تحميل البيانات: "+e.message);}}
+async function load(){if(!currentUser){samples=[];render();return;}try{let snap=await db.collection("samples").get();samples=snap.docs.map(d=>({id:d.id,...d.data()}));render();}catch(e){samples=[];render();alert("تعذر تحميل البيانات: "+e.message);}}
 function id(){let d=new Date(),stamp=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");let n=1;while(samples.some(x=>x.id==="SN-"+stamp+"-"+String(n).padStart(5,"0")))n++;return "SN-"+stamp+"-"+String(n).padStart(5,"0");}
 function find(x){return samples.find(s=>s.id===String(x).trim().toUpperCase());}
 function tag(x){return `<span class="tag ${x.status===4?"ok":x.status===5?"bad":""}">${STATUS[x.status]||"غير معروف"}</span>`;}
