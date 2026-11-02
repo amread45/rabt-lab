@@ -254,6 +254,7 @@ auth.onAuthStateChanged(async user=>{
     }
 
     currentRole=doc.data().role;
+   console.log("USER ROLE:", currentRole);
     $("authMsg").textContent="تم تسجيل الدخول: "+user.email;
     load();
 
