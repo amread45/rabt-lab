@@ -48,8 +48,11 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function now(){return new Date().toISOString();}
 function date(t){let d=new Date(t);return isNaN(d)?"—":d.toLocaleString("ar-EG",{dateStyle:"short",timeStyle:"short"});}
 const firebaseConfig = {apiKey:"AIzaSyBDQR_DKtJtRRHVDK09EifPcMKHJ632Kuw",authDomain:"rabt-lab.firebaseapp.com",projectId:"rabt-lab",storageBucket:"rabt-lab.firebasestorage.app",messagingSenderId:"648315847013",appId:"1:648315847013:web:146866596670cd65c2a18c",measurementId:"G-H2X0QMGFX8"};
-firebase.initializeApp(firebaseConfig); const auth=firebase.auth(), db=firebase.firestore(); let currentUser=null;
-function save(){if(!currentUser){alert("سجّل الدخول أولًا لحفظ البيانات.");return;} Promise.all(samples.map(x=>db.collection("samples").doc(x.id).set(x))).then(()=>{$("authMsg").textContent="تم حفظ البيانات على قاعدة البيانات.";}).catch(e=>alert("تعذر الحفظ: "+e.message));}
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(), db=firebase.firestore();
+let currentUser=null;
+let currentRole="";
+ function save(){if(!currentUser){alert("سجّل الدخول أولًا لحفظ البيانات.");return;} Promise.all(samples.map(x=>db.collection("samples").doc(x.id).set(x))).then(()=>{$("authMsg").textContent="تم حفظ البيانات على قاعدة البيانات.";}).catch(e=>alert("تعذر الحفظ: "+e.message));}
 async function load(){if(!currentUser){samples=[];render();return;}try{let snap=await db.collection("samples").get();samples=snap.docs.map(d=>d.data());render();}catch(e){samples=[];render();alert("تعذر تحميل البيانات: "+e.message);}}
 function id(){let d=new Date(),stamp=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");let n=1;while(samples.some(x=>x.id==="SN-"+stamp+"-"+String(n).padStart(5,"0")))n++;return "SN-"+stamp+"-"+String(n).padStart(5,"0");}
 function find(x){return samples.find(s=>s.id===String(x).trim().toUpperCase());}
@@ -58,24 +61,41 @@ function item(x,extra=""){return `<div class="card"><div class="row"><span class
 function timeline(x){return `<div class="timeline">${(x.log||[]).map(l=>`<div><b>${esc(STATUS[l.status]||"")}</b> · ${esc(l.who)}${l.note?` · ${esc(l.note)}`:""}<br><small>${date(l.time)}</small></div>`).join("")}</div>`;}
 
 function tabs(){
- let arr=[];
+  let arr=[];
 
-if(currentUser){
-  if(currentUser.uid==="KlxPsB8AnvZ7UUNiA61hTODJyll2"){
-    arr=[
-      ["unit","الوحدة"],
-      ["courier","المندوب"],
-      ["lab","المعمل"],
-      ["track","تتبع عينة"],
-      ["users","إدارة المستخدمين"]
-    ];
-  }else{
-    arr=[
-      ["unit","الوحدة"],
-      ["track","تتبع عينة"]
-    ];
+  if(currentUser){
+    if(currentUser.uid==="KlxPsB8AnvZ7UUNiA61hTODJyll2" || currentRole==="manager"){
+      arr=[
+        ["unit","الوحدة"],
+        ["courier","المندوب"],
+        ["lab","المعمل"],
+        ["track","تتبع عينة"],
+        ["users","إدارة المستخدمين"]
+      ];
+    }
+    else if(currentRole==="unit"){
+      arr=[
+        ["unit","الوحدة"],
+        ["track","تتبع عينة"]
+      ];
+    }
+    else if(currentRole==="courier"){
+      arr=[
+        ["courier","المندوب"],
+        ["track","تتبع عينة"]
+      ];
+    }
+    else if(currentRole==="lab"){
+      arr=[
+        ["lab","المعمل"],
+        ["track","تتبع عينة"]
+      ];
+    }
   }
-}
+
+  if(!arr.some(a=>a[0]===tab)){
+    tab=arr.length?arr[0][0]:"unit";
+  }
 
   $("tabs").innerHTML=arr.map(a=>
     `<button data-tab="${a[0]}" class="${tab===a[0]?"active":""}">${a[1]}</button>`
@@ -211,7 +231,36 @@ $("signup").onclick=async()=>{
 };
 
 $("logout").onclick=()=>auth.signOut();
-auth.onAuthStateChanged(user=>{currentUser=user;$("login").style.display=user?"none":"inline-block";$("logout").style.display=user?"inline-block":"none";$("authMsg").textContent=user?"تم تسجيل الدخول: "+user.email:"سجّل الدخول لعرض عينات Firestore.";load();});
+auth.onAuthStateChanged(async user=>{
+  currentUser=user;
+  currentRole="";
+
+  $("login").style.display=user?"none":"inline-block";
+  $("logout").style.display=user?"inline-block":"none";
+
+  if(!user){
+    $("authMsg").textContent="سجّل الدخول لعرض عينات Firestore.";
+    load();
+    return;
+  }
+
+  try{
+    const doc=await db.collection("users").doc(user.uid).get();
+
+    if(!doc.exists || doc.data().approved!==true){
+      $("authMsg").textContent="حسابك في انتظار موافقة المدير.";
+      await auth.signOut();
+      return;
+    }
+
+    currentRole=doc.data().role;
+    $("authMsg").textContent="تم تسجيل الدخول: "+user.email;
+    load();
+
+  }catch(e){
+    $("authMsg").textContent="تعذر تحميل بيانات الحساب: "+e.message;
+  }
+});
 </script>
 </body>
 </html>
