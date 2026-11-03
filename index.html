@@ -244,23 +244,32 @@ auth.onAuthStateChanged(async user=>{
     return;
   }
 
-  try{
-    const doc=await db.collection("users").doc(user.uid).get();
+ try {
+    const ADMIN_UID = "KlxPsB8AnvZ7UUNiA61hTODJyll2";
 
-    if(!doc.exists || doc.data().approved!==true){
-      $("authMsg").textContent="حسابك في انتظار موافقة المدير.";
-      await auth.signOut();
-      return;
+    if (user.uid === ADMIN_UID) {
+        currentUser = user;
+        currentRole = "manager";
+    } else {
+        const doc = await db.collection("users").doc(user.uid).get();
+
+        if (!doc.exists || doc.data().approved !== true) {
+            $("authMsg").textContent = "حسابك في انتظار موافقة المدير.";
+            await auth.signOut();
+            return;
+        }
+
+        currentUser = user;
+        currentRole = doc.data().role;
     }
 
-    currentRole=doc.data().role;
-   console.log("USER ROLE:", currentRole);
-    $("authMsg").textContent="تم تسجيل الدخول: "+user.email;
+    console.log("USER ROLE:", currentRole);
+    $("authMsg").textContent = "تم تسجيل الدخول: " + user.email;
     load();
 
-  }catch(e){
-    $("authMsg").textContent="تعذر تحميل بيانات الحساب: "+e.message;
-  }
+} catch(e) {
+    $("authMsg").textContent = "تعذر تحميل بيانات الحساب: " + e.message;
+}
 });
 </script>
 </body>
