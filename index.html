@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>رابط: من السحب للنتيجة</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -59,6 +60,11 @@ function find(x){return samples.find(s=>s.id===String(x).trim().toUpperCase());}
 function tag(x){return `<span class="tag ${x.status===4?"ok":x.status===5?"bad":""}">${STATUS[x.status]||"غير معروف"}</span>`;}
 function item(x,extra=""){return `<div class="card"><div class="row"><span class="id">${esc(x.id)}</span>${tag(x)}</div><div class="mut">${esc(x.healthAdministration||"")} · ${esc(x.unit)} · ${esc(x.type)} · ${esc(x.test)} · كود المريض: ${esc(x.patient)}</div>${extra}</div>`;}
 function timeline(x){return `<div class="timeline">${(x.log||[]).map(l=>`<div><b>${esc(STATUS[l.status]||"")}</b> · ${esc(l.who)}${l.note?` · ${esc(l.note)}`:""}<br><small>${date(l.time)}</small></div>`).join("")}</div>`;}
+function resultInfo(x){
+ const entries=(x.log||[]).filter(l=>l.status===4&&String(l.note||"").startsWith("النتيجة:"));
+ const last=entries[entries.length-1];
+ return last?{value:String(last.note).replace(/^النتيجة:\\s*/,""),time:last.time||x.updated||x.created}:null;
+}
 
 function tabs(){
   let arr=[];
@@ -70,6 +76,8 @@ function tabs(){
         ["courier","المندوب"],
         ["lab","المعمل"],
         ["track","تتبع عينة"],
+        ["report","التقرير المجمع"],
+        ["report","التقرير المجمع"],
         ["users","إدارة المستخدمين"]
       ];
     }
@@ -88,7 +96,8 @@ function tabs(){
     else if(currentRole==="lab"){
       arr=[
         ["lab","المعمل"],
-        ["track","تتبع عينة"]
+        ["track","تتبع عينة"],
+        ["report","التقرير المجمع"]
       ];
     }
   }
@@ -122,7 +131,7 @@ if(tab==="unit"){
  if(labelId&&find(labelId)){try{if(window.QRCode)new QRCode($("qr"),{text:labelId,width:160,height:160});else $("qr").textContent="مكتبة QR غير متاحة";}catch(e){$("qr").textContent="تعذر إنشاء QR";} $("print").onclick=()=>window.print();$("closeLabel").onclick=()=>{labelId="";render();};}
  $("create").onclick=()=>{let healthAdministration=$("healthAdministration").value.trim(),unit=$("unit").value.trim(),type=$("type").value.trim(),patient=$("patient").value.trim(),patientName=$("patientName").value.trim(),nationalId=$("nationalId").value.trim(),collectionDate=$("collectionDate").value,sendDate=$("sendDate").value,test=$("test").value.trim(),collector=$("collector").value.trim();if(!healthAdministration||!unit||!type||!patient||!patientName||!nationalId||!collectionDate||!sendDate||!test||!collector){alert("أكمل جميع البيانات المطلوبة.");return;}if(!/^\d{14}$/.test(nationalId)){alert("الرقم القومي يجب أن يتكون من 14 رقمًا.");return;}if(sendDate<collectionDate){alert("تاريخ الإرسال لا يمكن أن يكون قبل تاريخ السحب.");return;}let sample={id:id(),healthAdministration,unit,type,patient,patientName,nationalId,collectionDate,sendDate,test,status:0,accepted:null,created:now(),updated:now(),log:[{status:0,who:collector,note:`سحب العينة — تاريخ السحب: ${collectionDate} — تاريخ الإرسال: ${sendDate}`,time:now()}]};samples.push(sample);save();labelId=sample.id;render();};
 }
-if(tab==="courier"){alert("عدد الخانات المقروءة: " + nationalId.length);
+if(tab==="courier"){
  h=scanBox()+`<div class="card"><label>اسم المندوب</label><input id="worker" maxlength="80"></div>`;
  let list=selected(samples.filter(x=>x.status<3));h+=list.map(x=>{let action=x.status===0?["استلام من الوحدة",1]:["بدء الرحلة",2];return item(x,`<button class="btn" data-courier="${esc(x.id)}" data-next="${action[1]}">${action[0]}</button><div class="grid"><div><label>اسم المعمل المستقبل</label><input id="lab-name-${esc(x.id)}" maxlength="120" value="${esc(x.receivingLab||"")}"></div><div><label>تاريخ استلام المعمل للعينة</label><input id="lab-date-${esc(x.id)}" type="date" value="${esc(x.labReceivedDate||"")}"></div></div><button class="btn ok" data-lab-arrival="${esc(x.id)}">حفظ بيانات وصول المعمل</button>`);}).join("")||`<div class="card empty">${filter?"العينة غير موجودة أو ليست في مرحلة المندوب":"لا توجد عينات بانتظار المندوب."}</div>`;
  v.innerHTML=h;bindScan();v.querySelectorAll("[data-courier]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim();if(!who){alert("اكتب اسم المندوب.");return;}let x=find(b.dataset.courier);if(!x)return;advance(x,+b.dataset.next,who,b.dataset.next==="1"?"استلام من الوحدة":"بدء الرحلة");});v.querySelectorAll("[data-lab-arrival]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim(),lab=$(`lab-name-${b.dataset.labArrival}`).value.trim(),received=$(`lab-date-${b.dataset.labArrival}`).value;if(!who){alert("اكتب اسم المندوب.");return;}if(!lab||!received){alert("اكتب اسم المعمل وتاريخ استلامه للعينة.");return;}let x=find(b.dataset.labArrival);if(!x)return;x.receivingLab=lab;x.labReceivedDate=received;x.updated=now();x.log=x.log||[];x.log.push({status:x.status,who,note:`تسجيل وصول العينة إلى ${lab} — تاريخ استلام المعمل: ${received}`,time:x.updated});save();render();});
@@ -136,9 +145,49 @@ if(tab==="lab"){
  v.innerHTML=h;bindScan();
  v.querySelectorAll("[data-accept]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim(),t=$(`temp-${b.dataset.accept}`).value.trim();if(!who){alert("اكتب اسم المستلم.");return;}if(t===""){alert("أدخل درجة الحرارة.");return;}let x=find(b.dataset.accept);if(!x)return;if(Number(t)>8)advance(x,5,who,`رفض: درجة الحرارة ${t}°م أعلى من الحد التجريبي 8°م`,false);else advance(x,3,who,`درجة الحرارة ${t}°م — قبول تجريبي`,true);});
  v.querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim();if(!who){alert("اكتب اسم المستلم.");return;}let reason=prompt("سبب رفض العينة:");if(reason===null)return;if(!reason.trim()){alert("اكتب سبب الرفض.");return;}let x=find(b.dataset.reject);if(x)advance(x,5,who,`رفض: ${reason.trim()}`,false);});
- v.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim(),r=$(`result-${b.dataset.result}`).value.trim();if(!who||!r){alert("اكتب اسم المستلم والنتيجة.");return;}let x=find(b.dataset.result);if(x)advance(x,4,who,`النتيجة: ${r}`);});
+ v.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim(),r=$(`result-${b.dataset.result}`).value.trim();if(!who||!r){alert("اكتب اسم المستلم والنتيجة.");return;}let x=find(b.dataset.result);if(x){x.result=r;x.resultAt=now();advance(x,4,who,`النتيجة: ${r}`);}});
 }
  
+if(tab==="report"){
+ h=`<div class="card">
+ <b>التقرير المجمع لنتائج التحاليل</b>
+ <p class="mut">يعرض العينات التي نُشرت نتائجها، بما فيها النتائج المسجلة سابقًا.</p>
+ <div class="grid">
+  <div><label>من تاريخ النتيجة</label><input id="reportFrom" type="date"></div>
+  <div><label>إلى تاريخ النتيجة</label><input id="reportTo" type="date"></div>
+  <div><label>الإدارة الصحية</label><input id="reportAdmin" placeholder="كل الإدارات"></div>
+  <div><label>الوحدة الصحية</label><input id="reportUnit" placeholder="كل الوحدات"></div>
+  <div><label>التحليل</label><input id="reportTest" placeholder="كل التحاليل"></div>
+  <div><label>بحث بكود العينة أو المريض</label><input id="reportSearch" placeholder="اكتب كود العينة أو كود المريض"></div>
+ </div>
+ <div class="actions"><button class="btn" id="reportFilter">تطبيق البحث</button><button class="btn ghost" id="reportReset">عرض الكل</button><button class="btn ok" id="reportExcel">تصدير Excel</button></div>
+ <div class="mut" id="reportCount"></div>
+ </div><div id="reportResults"></div>`;
+ v.innerHTML=h;
+ const drawReport=()=>{
+  const from=$("reportFrom").value,to=$("reportTo").value,admin=$("reportAdmin").value.trim().toLowerCase(),unit=$("reportUnit").value.trim().toLowerCase(),test=$("reportTest").value.trim().toLowerCase(),q=$("reportSearch").value.trim().toLowerCase();
+  const rows=samples.map(x=>{const info=resultInfo(x);return info?{x,info}:null;}).filter(Boolean).filter(({x,info})=>{
+   const day=String(info.time||"").slice(0,10);
+   return (!from||day>=from)&&(!to||day<=to)&&(!admin||String(x.healthAdministration||"").toLowerCase().includes(admin))&&(!unit||String(x.unit||"").toLowerCase().includes(unit))&&(!test||String(x.test||"").toLowerCase().includes(test))&&(!q||[x.id,x.patient,x.patientName].some(v=>String(v||"").toLowerCase().includes(q)));
+  }).sort((a,b)=>String(b.info.time).localeCompare(String(a.info.time)));
+  $("reportCount").textContent="عدد النتائج المعروضة: "+rows.length;
+  $("reportResults").innerHTML=rows.length?`<div class="card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:850px"><thead><tr><th>كود العينة</th><th>الإدارة الصحية</th><th>الوحدة الصحية</th><th>كود المريض</th><th>اسم المريض</th><th>نوع العينة</th><th>التحليل</th><th>النتيجة</th><th>تاريخ النتيجة</th></tr></thead><tbody>${rows.map(({x,info})=>`<tr>${[x.id,x.healthAdministration,x.unit,x.patient,x.patientName,x.type,x.test,info.value,date(info.time)].map(v=>`<td style="padding:8px;border-bottom:1px solid var(--bd)">${esc(v||"—")}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`:`<div class="card empty">لا توجد نتائج مطابقة لخيارات البحث.</div>`;
+  return rows;
+ };
+ $("reportFilter").onclick=drawReport;
+ $("reportReset").onclick=()=>{["reportFrom","reportTo","reportAdmin","reportUnit","reportTest","reportSearch"].forEach(id=>$(id).value="");drawReport();};
+ $("reportExcel").onclick=()=>{
+  const rows=drawReport();
+  if(!rows.length){alert("لا توجد نتائج لتصديرها.");return;}
+  if(!window.XLSX){alert("تعذر تحميل أداة Excel. تحقق من اتصال الإنترنت ثم أعد المحاولة.");return;}
+  const data=[["كود العينة","الإدارة الصحية","الوحدة الصحية","كود المريض","اسم المريض","نوع العينة","التحليل","النتيجة","تاريخ النتيجة"],...rows.map(({x,info})=>[x.id||"",x.healthAdministration||"",x.unit||"",x.patient||"",x.patientName||"",x.type||"",x.test||"",info.value||"",date(info.time)])];
+  const ws=XLSX.utils.aoa_to_sheet(data),wb=XLSX.utils.book_new();
+  ws["!cols"]=[18,22,22,18,25,18,22,35,24].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,"نتائج التحاليل");
+  XLSX.writeFile(wb,"تقرير-نتائج-رابط.xlsx");
+ };
+ drawReport();
+}
 if(tab==="users"){
   v.innerHTML=`<div class="card">
     <h3>إدارة المستخدمين</h3>
