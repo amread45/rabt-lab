@@ -14,7 +14,7 @@
 :root{--bg:#f3f6fa;--card:#fff;--tx:#172b3a;--mut:#647789;--pri:#176b9a;--ok:#188454;--bad:#b9382b;--bd:#d7e1e9;--warn:#a76508}
 @media(prefers-color-scheme:dark){:root{--bg:#121a22;--card:#1b2631;--tx:#e8eef3;--mut:#9aabba;--pri:#4aa3d6;--ok:#36b77c;--bad:#ed7165;--bd:#2c3b49;--warn:#e8a644}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:Arial,Tahoma,sans-serif;line-height:1.6}
-.wrap{max-width:850px;margin:auto;padding:14px}h1{font-size:22px;margin:5px 0}.sub{color:var(--mut);font-size:13px;margin:0 0 12px}
+.wrap{max-width:850px;margin:auto;padding:14px}h1{font-size:28px;margin:8px 0 18px;text-align:center;font-weight:800;letter-spacing:.2px;color:var(--pri);padding:12px 10px;border-bottom:2px solid var(--bd)}.sub{color:var(--mut);font-size:13px;margin:0 0 12px}
 .notice{background:var(--card);border:1px solid var(--bd);border-right:4px solid var(--warn);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px}
 .tabs{display:flex;gap:6px;overflow:auto;margin-bottom:12px}.tabs button{flex:1;white-space:nowrap;padding:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;font:inherit;cursor:pointer}.tabs button.active{background:var(--pri);color:white}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}.row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
@@ -29,8 +29,6 @@ label{display:block;color:var(--mut);font-size:13px;margin:8px 0 3px}input,selec
 <body>
 <div class="wrap">
 <h1>رابط: من السحب للنتيجة</h1>
-<p class="sub">نسخة تجريبية متصلة بـ Firebase — استخدم كود المريض وليس الرقم القومي.</p>
-<div class="notice">البيانات تُحفظ في Firestore وتظهر للمستخدمين المسجلين. لا تستخدم بيانات مرضى حقيقية قبل تأمين صلاحيات المستخدمين.</div>
 <div class="card" id="authBox"><b>تسجيل الدخول لمزامنة البيانات</b><div class="grid"><div><label>البريد الإلكتروني</label><input id="email" type="email" autocomplete="username"></div><div><label>كلمة المرور</label><input id="password" type="password" autocomplete="current-password"></div></div><button class="btn" id="login">تسجيل الدخول</button>
 <button class="btn ghost" id="signup">إنشاء حساب جديد</button><button class="btn ghost" id="logout" style="display:none">تسجيل الخروج</button><div class="mut" id="authMsg">سجّل الدخول لعرض عينات Firestore.</div></div>
 <div class="tabs" id="tabs"></div>
