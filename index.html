@@ -122,7 +122,7 @@ function advance(x,status,who,note="",accepted){x.status=status;x.updated=now();
 function render(){tabs();let v=$("view"),h="";
 if(tab==="unit"){
  if(labelId){let x=find(labelId);if(x)h+=`<div class="card" id="printArea" style="text-align:center"><b>ملصق العينة</b><br><div id="qr"></div><div class="id" style="font-size:20px">${esc(x.id)}</div><div class="mut">${esc(x.unit)} · ${esc(x.test)}</div><button class="btn" id="print">طباعة الملصق</button> <button class="btn ghost" id="closeLabel">إغلاق</button></div>`;}
- h+=`<div class="card"><b>تسجيل سحب عينة</b><div class="grid"><div><label>الإدارة الصحية</label><input id="healthAdministration" maxlength="120" placeholder="اكتب اسم الإدارة الصحية"></div><div><label>الوحدة الصحية</label><input id="unit" maxlength="120" placeholder="اكتب اسم الوحدة الصحية"></div><div><label>نوع العينة</label><input id="type" maxlength="80" placeholder="اكتب نوع العينة"></div><div><label>كود المريض</label><input id="patient" maxlength="40"></div><div><label>الاسم رباعي</label><input id="patientName" maxlength="150"></div><div><label>الرقم القومي (14 رقمًا)</label><input id="nationalId" type="text" inputmode="numeric" maxlength="14"></div><div><label>تاريخ سحب العينة</label><input id="collectionDate" type="date"></div><div><label>تاريخ إرسال العينة</label><input id="sendDate" type="date"></div><div><label>التحليل المطلوب</label><input id="test" maxlength="120"></div><div><label>اسم الساحب</label><input id="collector" maxlength="80"></div></div><button class="btn" id="create">تسجيل وإصدار رقم العينة</button></div>`;
+ h+=`<div class="card"><b>تسجيل سحب عينة</b><div class="grid"><div><label>الإدارة الصحية</label><input id="healthAdministration" maxlength="120" placeholder="اكتب اسم الإدارة الصحية"></div><div><label>الجهة الراسلة</label><input id="unit" maxlength="120" placeholder="اكتب اسم الجهة الراسلة"></div><div><label>نوع العينة</label><input id="type" maxlength="80" placeholder="اكتب نوع العينة"></div><div><label>كود المريض</label><input id="patient" maxlength="40"></div><div><label>الاسم رباعي</label><input id="patientName" maxlength="150"></div><div><label>الرقم القومي (14 رقمًا)</label><input id="nationalId" type="text" inputmode="numeric" maxlength="14"></div><div><label>تاريخ سحب العينة</label><input id="collectionDate" type="date"></div><div><label>تاريخ إرسال العينة</label><input id="sendDate" type="date"></div><div><label>التحليل المطلوب</label><input id="test" maxlength="120"></div><div><label>اسم الساحب</label><input id="collector" maxlength="80"></div></div><button class="btn" id="create">تسجيل وإصدار رقم العينة</button></div>`;
  h+=samples.slice().reverse().slice(0,5).map(x=>item(x)).join("")||`<div class="card empty">لا توجد عينات مسجلة.</div>`;
  v.innerHTML=h;
  if(labelId&&find(labelId)){try{if(window.QRCode)new QRCode($("qr"),{text:labelId,width:160,height:160});else $("qr").textContent="مكتبة QR غير متاحة";}catch(e){$("qr").textContent="تعذر إنشاء QR";} $("print").onclick=()=>window.print();$("closeLabel").onclick=()=>{labelId="";render();};}
@@ -153,7 +153,7 @@ if(tab==="report"){
   <div><label>من تاريخ النتيجة</label><input id="reportFrom" type="date"></div>
   <div><label>إلى تاريخ النتيجة</label><input id="reportTo" type="date"></div>
   <div><label>الإدارة الصحية</label><input id="reportAdmin" placeholder="كل الإدارات"></div>
-  <div><label>الوحدة الصحية</label><input id="reportUnit" placeholder="كل الوحدات"></div>
+  <div><label>الجهة الراسلة</label><input id="reportUnit" placeholder="كل الوحدات"></div>
   <div><label>التحليل</label><input id="reportTest" placeholder="كل التحاليل"></div>
   <div><label>بحث بكود العينة أو المريض</label><input id="reportSearch" placeholder="اكتب كود العينة أو كود المريض"></div>
  </div>
@@ -168,7 +168,7 @@ if(tab==="report"){
    return (!from||day>=from)&&(!to||day<=to)&&(!admin||String(x.healthAdministration||"").toLowerCase().includes(admin))&&(!unit||String(x.unit||"").toLowerCase().includes(unit))&&(!test||String(x.test||"").toLowerCase().includes(test))&&(!q||[x.id,x.patient,x.patientName].some(v=>String(v||"").toLowerCase().includes(q)));
   }).sort((a,b)=>String(b.info.time).localeCompare(String(a.info.time)));
   $("reportCount").textContent="عدد النتائج المعروضة: "+rows.length;
-  $("reportResults").innerHTML=rows.length?`<div class="card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:850px"><thead><tr><th>كود العينة</th><th>الإدارة الصحية</th><th>الوحدة الصحية</th><th>كود المريض</th><th>اسم المريض</th><th>نوع العينة</th><th>التحليل</th><th>النتيجة</th><th>تاريخ النتيجة</th></tr></thead><tbody>${rows.map(({x,info})=>`<tr>${[x.id,x.healthAdministration,x.unit,x.patient,x.patientName,x.type,x.test,info.value,date(info.time)].map(v=>`<td style="padding:8px;border-bottom:1px solid var(--bd)">${esc(v||"—")}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`:`<div class="card empty">لا توجد نتائج مطابقة لخيارات البحث.</div>`;
+  $("reportResults").innerHTML=rows.length?`<div class="card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:850px"><thead><tr><th>كود العينة</th><th>الإدارة الصحية</th><th>الجهة الراسلة</th><th>كود المريض</th><th>اسم المريض</th><th>نوع العينة</th><th>التحليل</th><th>النتيجة</th><th>تاريخ النتيجة</th></tr></thead><tbody>${rows.map(({x,info})=>`<tr>${[x.id,x.healthAdministration,x.unit,x.patient,x.patientName,x.type,x.test,info.value,date(info.time)].map(v=>`<td style="padding:8px;border-bottom:1px solid var(--bd)">${esc(v||"—")}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`:`<div class="card empty">لا توجد نتائج مطابقة لخيارات البحث.</div>`;
   return rows;
  };
  $("reportFilter").onclick=drawReport;
@@ -177,7 +177,7 @@ if(tab==="report"){
   const rows=drawReport();
   if(!rows.length){alert("لا توجد نتائج لتصديرها.");return;}
   if(!window.XLSX){alert("تعذر تحميل أداة Excel. تحقق من اتصال الإنترنت ثم أعد المحاولة.");return;}
-  const data=[["كود العينة","الإدارة الصحية","الوحدة الصحية","كود المريض","اسم المريض","نوع العينة","التحليل","النتيجة","تاريخ النتيجة"],...rows.map(({x,info})=>[x.id||"",x.healthAdministration||"",x.unit||"",x.patient||"",x.patientName||"",x.type||"",x.test||"",info.value||"",date(info.time)])];
+  const data=[["كود العينة","الإدارة الصحية","الجهة الراسلة","كود المريض","اسم المريض","نوع العينة","التحليل","النتيجة","تاريخ النتيجة"],...rows.map(({x,info})=>[x.id||"",x.healthAdministration||"",x.unit||"",x.patient||"",x.patientName||"",x.type||"",x.test||"",info.value||"",date(info.time)])];
   const ws=XLSX.utils.aoa_to_sheet(data),wb=XLSX.utils.book_new();
   ws["!cols"]=[18,22,22,18,25,18,22,35,24].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,"نتائج التحاليل");
