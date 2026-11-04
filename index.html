@@ -35,7 +35,7 @@ label{display:block;color:var(--mut);font-size:13px;margin:8px 0 3px}input,selec
 <button class="btn ghost" id="signup">إنشاء حساب جديد</button><button class="btn ghost" id="logout" style="display:none">تسجيل الخروج</button><div class="mut" id="authMsg">سجّل الدخول لعرض عينات Firestore.</div></div>
 <div class="tabs" id="tabs"></div>
 <div id="view"><div class="card empty">جاري التحميل...</div></div>
-<div class="row"><button class="btn ghost" id="refresh">تحديث العرض</button><button class="btn ghost" id="export">تصدير نسخة احتياطية</button><button class="btn ghost" id="import">استيراد نسخة</button><button class="btn bad" id="clear">مسح بيانات الجهاز</button></div>
+<div class="row" id="managerTools" style="display:none"><button class="btn ghost" id="refresh">تحديث العرض</button><button class="btn ghost" id="export">تصدير نسخة احتياطية</button><button class="btn ghost" id="import">استيراد نسخة</button><button class="btn bad" id="clear">مسح بيانات الجهاز</button></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 </div>
 <script>
@@ -282,6 +282,7 @@ $("logout").onclick=()=>auth.signOut();
 auth.onAuthStateChanged(async user=>{
   currentUser=user;
   currentRole="";
+  $("managerTools").style.display="none";
 
   $("login").style.display=user?"none":"inline-block";
   $("logout").style.display=user?"inline-block":"none";
@@ -312,6 +313,7 @@ auth.onAuthStateChanged(async user=>{
     }
 
     console.log("USER ROLE:", currentRole);
+    $("managerTools").style.display = currentRole === "manager" ? "flex" : "none";
     $("authMsg").textContent = "تم تسجيل الدخول: " + user.email;
     load();
 
