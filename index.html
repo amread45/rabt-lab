@@ -41,7 +41,7 @@ label{display:block;color:var(--mut);font-size:13px;margin:8px 0 3px}input,selec
 const STATUS=["سُحبت","استلمها المندوب","في الطريق","وصلت المعمل","النتيجة جاهزة","مرفوضة"];
 const UNITS=["وحدة ميت غزال","وحدة البندرة","وحدة الجميزة","وحدة المنشأة الكبرى","مستشفى السنطة العام"];
 const KEY="rabt_samples_local_v1";
-let samples=[],tab="unit",filter="",labelId="";
+let samples=[],tab="unit",filter="",labelId="",shipmentLabelId="";
 const $=id=>document.getElementById(id);
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function now(){return new Date().toISOString();}
@@ -114,9 +114,9 @@ function tabs(){
   });
 }
 
-function selected(list){return filter?list.filter(x=>x.id===filter):list;}
+function selected(list){if(!filter)return list;if(filter.startsWith("SHIP:")){const sid=filter.slice(5);return list.filter(x=>x.shipmentId===sid);}return list.filter(x=>x.id===filter);}
 function scan(cb){let inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.setAttribute("capture","environment");inp.onchange=()=>{let f=inp.files&&inp.files[0];if(!f)return;let url=URL.createObjectURL(f),img=new Image();img.onload=()=>{try{let scale=Math.min(1,1400/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);let ctx=c.getContext("2d",{willReadFrequently:true});ctx.drawImage(img,0,0,c.width,c.height);let data=ctx.getImageData(0,0,c.width,c.height);let r=window.jsQR?jsQR(data.data,data.width,data.height):null;if(r&&r.data)cb(r.data.trim().toUpperCase());else alert("تعذر قراءة QR. جرّب صورة أوضح وإضاءة جيدة.");}catch(e){alert("تعذر معالجة الصورة.");}finally{URL.revokeObjectURL(url);}};img.onerror=()=>{URL.revokeObjectURL(url);alert("تعذر فتح الصورة.");};img.src=url;};inp.click();}
-function scanBox(){return `<div class="card"><button class="btn" id="scan">📷 مسح QR من صورة</button>${filter?` <button class="btn ghost" id="all">عرض الكل</button><div class="mut">العينة: <span class="id">${esc(filter)}</span></div>`:""}</div>`;}
+function scanBox(){return `<div class="card"><button class="btn" id="scan">📷 مسح QR من صورة</button>${filter?` <button class="btn ghost" id="all">عرض الكل</button><div class="mut">${filter.startsWith("SHIP:")?"الشحنة:":"العينة:"} <span class="id">${esc(filter.startsWith("SHIP:")?filter.slice(5):filter)}</span></div>`:""}</div>`;}
 function bindScan(){if($("scan"))$("scan").onclick=()=>scan(x=>{filter=x;render();});if($("all"))$("all").onclick=()=>{filter="";render();};}
 function advance(x,status,who,note="",accepted){x.status=status;x.updated=now();x.log.push({status,who,note,time:x.updated});if(typeof accepted==="boolean")x.accepted=accepted;save();render();}
 function render(){tabs();let v=$("view"),h="";
@@ -130,8 +130,49 @@ if(tab==="unit"){
 }
 if(tab==="courier"){
  h=scanBox()+`<div class="card"><label>اسم المندوب</label><input id="worker" maxlength="80"></div>`;
- let list=selected(samples.filter(x=>x.status<3));h+=list.map(x=>{let action=x.status===0?["استلام من الوحدة",1]:["بدء الرحلة",2];return item(x,`<button class="btn" data-courier="${esc(x.id)}" data-next="${action[1]}">${action[0]}</button><div class="grid"><div><label>اسم المعمل المستقبل</label><input id="lab-name-${esc(x.id)}" maxlength="120" value="${esc(x.receivingLab||"")}"></div><div><label>تاريخ استلام المعمل للعينة</label><input id="lab-date-${esc(x.id)}" type="date" value="${esc(x.labReceivedDate||"")}"></div></div><button class="btn ok" data-lab-arrival="${esc(x.id)}">حفظ بيانات وصول المعمل</button>`);}).join("")||`<div class="card empty">${filter?"العينة غير موجودة أو ليست في مرحلة المندوب":"لا توجد عينات بانتظار المندوب."}</div>`;
- v.innerHTML=h;bindScan();v.querySelectorAll("[data-courier]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim();if(!who){alert("اكتب اسم المندوب.");return;}let x=find(b.dataset.courier);if(!x)return;advance(x,+b.dataset.next,who,b.dataset.next==="1"?"استلام من الوحدة":"بدء الرحلة");});v.querySelectorAll("[data-lab-arrival]").forEach(b=>b.onclick=()=>{let who=$("worker").value.trim(),lab=$(`lab-name-${b.dataset.labArrival}`).value.trim(),received=$(`lab-date-${b.dataset.labArrival}`).value;if(!who){alert("اكتب اسم المندوب.");return;}if(!lab||!received){alert("اكتب اسم المعمل وتاريخ استلامه للعينة.");return;}let x=find(b.dataset.labArrival);if(!x)return;x.receivingLab=lab;x.labReceivedDate=received;x.updated=now();x.log=x.log||[];x.log.push({status:x.status,who,note:`تسجيل وصول العينة إلى ${lab} — تاريخ استلام المعمل: ${received}`,time:x.updated});save();render();});
+ if(shipmentLabelId){
+   const shipmentSamples=samples.filter(x=>x.shipmentId===shipmentLabelId);
+   h+=`<div class="card" id="printArea" style="text-align:center"><b>بيانات شحنة العينات</b><div class="id" style="font-size:20px;margin:8px">${esc(shipmentLabelId)}</div><div id="shipmentQr" style="display:inline-block;background:#fff;padding:10px;border-radius:8px"></div><p>عدد العينات: ${shipmentSamples.length}</p><p class="mut">امسح الكود في المعمل لعرض عينات الشحنة</p><button class="btn" id="printShipment">طباعة QR الشحنة</button> <button class="btn ghost" id="closeShipment">إغلاق</button></div>`;
+ }
+ const pending=samples.filter(x=>x.status===0&&x.sendDate);
+ const dates=[...new Set(pending.map(x=>x.sendDate))].sort();
+ if(!dates.length){
+   h+=`<div class="card empty">${filter?"لا توجد عينات مطابقة للشحنة أو العينة المحددة.":"لا توجد عينات جديدة بانتظار استلام المندوب."}</div>`;
+ } else {
+   h+=dates.map(day=>{
+     const group=pending.filter(x=>x.sendDate===day);
+     return `<div class="card"><div class="row"><b>عينات تاريخ الإرسال: ${esc(day)}</b><span class="tag">${group.length} عينة</span></div><p class="mut">حدد العينات الموجودة فعليًا في نقطة التجميع، ثم أنشئ شحنة واحدة لها.</p><div class="actions"><button class="btn ghost" type="button" data-select-day="${esc(day)}">تحديد الكل</button><button class="btn ghost" type="button" data-clear-day="${esc(day)}">إلغاء التحديد</button></div>${group.map(x=>`<div style="border-top:1px solid var(--bd);padding:9px 0"><label style="display:flex;align-items:center;gap:8px;color:var(--tx)"><input type="checkbox" class="shipment-check" data-day="${esc(day)}" value="${esc(x.id)}" style="width:auto">${esc(x.id)} — ${esc(x.unit||"")} — ${esc(x.test||"")} — كود المريض: ${esc(x.patient||"")}</label></div>`).join("")}<button class="btn ok" type="button" data-create-shipment="${esc(day)}">استلام العينات المحددة وإنشاء شحنة</button></div>`;
+   }).join("");
+ }
+ h+=`<div class="card"><b>الشحنات التي تم إنشاؤها</b></div>`;
+ const shipped=[...new Map(samples.filter(x=>x.shipmentId).map(x=>[x.shipmentId,x])).values()].sort((a,b)=>String(b.shipmentCreated||"").localeCompare(String(a.shipmentCreated||"")));
+ h+=shipped.map(x=>{const count=samples.filter(s=>s.shipmentId===x.shipmentId).length;return `<div class="card"><div class="row"><span class="id">${esc(x.shipmentId)}</span><span class="tag">${count} عينة</span></div><div class="mut">تاريخ الإرسال: ${esc(x.sendDate||"—")} · المندوب: ${esc(x.courierName||"—")}</div><button class="btn ghost" data-show-shipment="${esc(x.shipmentId)}">عرض QR الشحنة</button></div>`;}).join("");
+ v.innerHTML=h;bindScan();
+ if(shipmentLabelId&&$("shipmentQr")){try{new QRCode($("shipmentQr"),{text:"SHIP:"+shipmentLabelId,width:180,height:180});}catch(e){$("shipmentQr").textContent="تعذر إنشاء QR";}}
+ if($("printShipment"))$("printShipment").onclick=()=>window.print();
+ if($("closeShipment"))$("closeShipment").onclick=()=>{shipmentLabelId="";render();};
+ v.querySelectorAll("[data-select-day]").forEach(b=>b.onclick=()=>{v.querySelectorAll(`.shipment-check[data-day="${b.dataset.selectDay}"]`).forEach(c=>c.checked=true);});
+ v.querySelectorAll("[data-clear-day]").forEach(b=>b.onclick=()=>{v.querySelectorAll(`.shipment-check[data-day="${b.dataset.clearDay}"]`).forEach(c=>c.checked=false);});
+ v.querySelectorAll("[data-create-shipment]").forEach(b=>b.onclick=()=>{
+   const who=$("worker").value.trim();if(!who){alert("اكتب اسم المندوب.");return;}
+   const day=b.dataset.createShipment;
+   const ids=[...v.querySelectorAll(`.shipment-check[data-day="${day}"]:checked`)].map(c=>c.value);
+   if(!ids.length){alert("حدد عينة واحدة على الأقل من العينات الموجودة فعليًا.");return;}
+   const chosen=ids.map(find).filter(x=>x&&x.status===0&&x.sendDate===day);
+   if(!chosen.length){alert("العينات المحددة لم تعد متاحة للاستلام. حدّث الصفحة.");return;}
+   const stamp=new Date().toISOString().replace(/[-:TZ.]/g,"").slice(0,14);
+   const shipmentId="SH-"+day.replace(/-/g,"")+"-"+stamp.slice(8)+"-"+Math.random().toString(36).slice(2,6).toUpperCase();
+   const time=now();
+   chosen.forEach(x=>{
+     x.shipmentId=shipmentId;x.shipmentDate=day;x.shipmentCreated=time;x.courierName=who;
+     x.status=1;x.updated=time;x.log=x.log||[];
+     x.log.push({status:1,who,note:`استلام العينة ضمن الشحنة ${shipmentId}`,time});
+     x.status=2;x.updated=time;
+     x.log.push({status:2,who,note:`بدء رحلة الشحنة ${shipmentId} — عدد عينات الشحنة: ${chosen.length}`,time});
+   });
+   shipmentLabelId=shipmentId;filter="";save();render();
+ });
+ v.querySelectorAll("[data-show-shipment]").forEach(b=>b.onclick=()=>{shipmentLabelId=b.dataset.showShipment;filter="";render();});
 }
 if(tab==="lab"){
  h=scanBox()+`<div class="card"><label>اسم المستلم في المعمل</label><input id="worker" maxlength="80"></div>`;
